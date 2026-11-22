@@ -28,3 +28,5 @@ export {
 } from './Booking.js'
 export { Payment, PAYMENT_RESULTS, PAYMENT_PROVIDERS } from './Payment.js'
 export { Notification, NOTIFICATION_TYPES } from './Notification.js'
+export { Report, REPORT_TARGETS, REPORT_REASONS, REPORT_STATUSES } from './Report.js'
+export { AdminAction } from './AdminAction.js'

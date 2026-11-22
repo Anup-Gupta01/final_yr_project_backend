@@ -19,6 +19,15 @@ export const authLimiter = rateLimit({
   },
 })
 
+/** Payment endpoints: generous enough for retries, tight enough to stop abuse. */
+export const paymentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: isProduction ? 30 : 300,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many payment attempts. Please wait a few minutes.' },
+})
+
 export const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: isProduction ? 120 : 1000,

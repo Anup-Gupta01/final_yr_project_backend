@@ -57,6 +57,26 @@ const userSchema = new mongoose.Schema(
       default: 'active',
     },
 
+    // Shown to the user when a suspended account tries to sign in.
+    suspensionReason: { type: String, trim: true, maxlength: 300, default: null },
+
+    // What a tenant is looking for. Drives the content-based recommendations.
+    preferences: {
+      city: { type: String, trim: true, default: '' },
+      budgetMin: { type: Number, min: 0, default: null },
+      budgetMax: { type: Number, min: 0, default: null },
+      propertyTypes: { type: [String], default: [] },
+      occupancy: { type: [String], default: [] },
+      gender: { type: String, default: 'Any' },
+      furnishing: { type: String, default: '' },
+      amenities: { type: [String], default: [] },
+      updatedAt: { type: Date, default: null },
+    },
+
+    // Password reset: only a hash of the emailed token is stored.
+    resetPasswordTokenHash: { type: String, default: null, select: false },
+    resetPasswordExpires: { type: Date, default: null, select: false },
+
     // Properties this tenant has saved. Used by the favourites APIs.
     favorites: [
       {
@@ -91,6 +111,7 @@ userSchema.methods.toPublicJSON = function toPublicJSON() {
     role: this.role,
     profileImage: this.profileImage,
     status: this.status,
+    hasPreferences: Boolean(this.preferences?.updatedAt),
     createdAt: this.createdAt,
   }
 }

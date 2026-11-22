@@ -32,6 +32,26 @@ export const env = {
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
+
+  // Public URL of this API, used to build absolute links to uploaded images.
+  publicApiUrl: read('PUBLIC_API_URL', { fallback: '' }).replace(/\/$/, ''),
+
+  // ── Razorpay (optional: payments are disabled with a clear message when absent)
+  razorpay: {
+    keyId: read('RAZORPAY_KEY_ID', { fallback: '' }),
+    keySecret: read('RAZORPAY_KEY_SECRET', { fallback: '' }),
+    webhookSecret: read('RAZORPAY_WEBHOOK_SECRET', { fallback: '' }),
+    currency: read('RAZORPAY_CURRENCY', { fallback: 'INR' }),
+  },
+
+  // ── Transactional email through Resend (optional)
+  email: {
+    resendApiKey: read('RESEND_API_KEY', { fallback: '' }),
+    from: read('MAIL_FROM', { fallback: 'StaySphere <onboarding@resend.dev>' }),
+  },
 }
+
+/** Frontend base URL for links in emails (password reset and so on). */
+export const clientUrl = (read('CLIENT_URL', { fallback: '' }) || env.clientOrigins[0] || 'http://localhost:5173').replace(/\/$/, '')
 
 export const isProduction = env.nodeEnv === 'production'

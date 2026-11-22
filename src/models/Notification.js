@@ -19,6 +19,10 @@ export const NOTIFICATION_TYPES = [
   'property_rejected',
   'property_suspended',
   'report_resolved',
+  'payment_received',
+  'payment_failed',
+  'account_suspended',
+  'account_reinstated',
 ]
 
 const notificationSchema = new mongoose.Schema(

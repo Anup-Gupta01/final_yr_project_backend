@@ -7,6 +7,8 @@ import { apiLimiter } from './middleware/rateLimiter.js'
 import { errorHandler, notFoundHandler } from './middleware/errorMiddleware.js'
 import { AppError } from './utils/AppError.js'
 import apiRoutes from './routes/index.js'
+import { webhook } from './controllers/featureControllers.js'
+import { UPLOAD_ROOT } from './middleware/uploadMiddleware.js'
 
 /**
  * Builds the Express application.
@@ -18,7 +20,8 @@ export function createApp() {
   const app = express()
 
   // Security headers.
-  app.use(helmet())
+  // Uploaded images are fetched by the frontend from another origin.
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
 
   /**
    * CORS.
@@ -57,6 +60,13 @@ export function createApp() {
       credentials: true,
     }),
   )
+
+  // Razorpay webhook: needs the raw bytes to verify its signature, so it is
+  // registered before the JSON parser. Razorpay calls it server-to-server.
+  app.post('/api/payments/webhook', express.raw({ type: '*/*', limit: '1mb' }), webhook)
+
+  // Uploaded property images.
+  app.use('/uploads', express.static(UPLOAD_ROOT, { maxAge: '7d', fallthrough: false }))
 
   // Body parsing, with a cap so a huge payload cannot exhaust memory.
   app.use(express.json({ limit: '1mb' }))
@@ -107,7 +117,7 @@ export function createApp() {
           'PATCH /api/notifications/read-all',
         ],
       },
-      note: 'Payments, admin moderation and the Maps/Cloudinary/Resend integrations are not implemented yet.',
+      more: ['/api/users', '/api/payments', '/api/recommendations', '/api/reports', '/api/landlord', '/api/admin', '/api/uploads'],
     })
   })
 

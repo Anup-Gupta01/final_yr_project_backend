@@ -50,7 +50,7 @@ export async function loginUser({ email, password }) {
   }
 
   if (user.status === 'suspended') {
-    throw forbidden('This account has been suspended. Please contact support.')
+    throw forbidden(`This account has been suspended${user.suspensionReason ? `: ${user.suspensionReason}` : ''}. Please contact support.`)
   }
 
   return { user: user.toPublicJSON(), token: generateToken(user) }

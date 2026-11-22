@@ -197,6 +197,12 @@ const propertySchema = new mongoose.Schema(
       default: 'pending',
     },
 
+    // Moderation details, shown to the landlord and kept for the audit trail.
+    rejectionReason: { type: String, trim: true, maxlength: 300, default: null },
+    suspensionReason: { type: String, trim: true, maxlength: 300, default: null },
+    verifiedAt: { type: Date, default: null },
+    suspendedAt: { type: Date, default: null },
+
     featured: { type: Boolean, default: false },
 
     // Driven by the booking workflow, not written directly by clients.
@@ -290,6 +296,9 @@ propertySchema.methods.toPublicJSON = function toPublicJSON() {
     status: this.availabilityStatus,
     verified: this.verificationStatus === 'verified',
     verificationStatus: this.verificationStatus,
+    availabilityStatus: this.availabilityStatus,
+    rejectionReason: this.rejectionReason ?? null,
+    suspensionReason: this.suspensionReason ?? null,
     featured: this.featured,
 
     rating: this.rating,

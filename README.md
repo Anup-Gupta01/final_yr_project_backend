@@ -6,14 +6,17 @@ accommodation in tier-2 and tier-3 Indian cities.
 Built with Node.js, Express 5, MongoDB and Mongoose. Authentication uses JWT
 with bcrypt-hashed passwords.
 
-> **Build status:** foundation, models, authentication, role authorization,
-> property CRUD, search/filters/pagination with geospatial nearby queries,
-> the booking state machine and in-app notifications are implemented and
-> tested (94 tests).
+> **Build status:** authentication and roles, property CRUD and search
+> (filters, pagination, geospatial nearby), the booking state machine,
+> **Razorpay payments** (order, signature verification, signed webhooks),
+> favourites, profile and password reset, **content-based recommendations**
+> (TF-IDF + cosine similarity), reports, the landlord dashboard and the full
+> **admin console API** (moderation with an audit trail, analytics) are
+> implemented and tested (118 tests).
 >
-> **Not built yet:** payments (Razorpay), transactional email (Resend),
-> media uploads (Cloudinary), Google Maps, favourites, landlord dashboard
-> aggregates and admin moderation — see [Roadmap](#roadmap).
+> **Optional integrations:** Razorpay needs keys in `.env` (payments are
+> disabled with a clear message until then); Resend email is optional;
+> property images are stored on this server under `uploads/`.
 
 ---
 
@@ -478,6 +481,56 @@ Atlas.
 
 ---
 
+## Payments with Razorpay
+
+1. Create a free Razorpay account, switch the dashboard to **Test Mode**,
+   then **Account & Settings -> API Keys -> Generate Test Key**.
+2. Put the keys in `.env` and restart the API:
+
+   ```
+   RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxx
+   RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxxxxxx
+   ```
+3. Optional but recommended once deployed: **Webhooks -> Add New Webhook**,
+   URL `https://<your-api>/api/payments/webhook`, events `payment.captured`,
+   `payment.failed`, `order.paid`, and put its secret in
+   `RAZORPAY_WEBHOOK_SECRET`. (Webhooks cannot reach `localhost`; the
+   checkout signature check alone confirms payments during local testing.)
+
+Flow: the landlord approves -> booking is `payment_pending` -> the tenant
+clicks **Pay** -> `POST /api/payments/create-order` creates a Razorpay order
+for first month's rent + deposit (computed on the server) -> Razorpay
+Checkout opens -> `POST /api/payments/verify` checks the HMAC signature ->
+booking moves `paid -> booked`. The webhook confirms the same payment
+idempotently; whichever arrives first wins and the other is a no-op.
+
+In Test Mode use Razorpay's test card `4111 1111 1111 1111` (any future
+expiry, any CVV) or UPI id `success@razorpay`. No real money moves.
+
+| Endpoint | Who | Purpose |
+| --- | --- | --- |
+| `GET /api/payments/config` | Public | Whether payments are enabled, test/live mode, public key id |
+| `POST /api/payments/create-order` | Tenant | Razorpay order for a `payment_pending` booking |
+| `POST /api/payments/verify` | Tenant | Verify checkout signature, confirm booking |
+| `POST /api/payments/failed` | Tenant | Record a failed/closed checkout so it can be retried |
+| `POST /api/payments/webhook` | Razorpay | Signed async confirmation (raw body) |
+| `GET /api/payments/my` · `GET /api/payments/booking/:id` | Tenant / landlord / admin | Payment history |
+
+## Other APIs added
+
+| Area | Endpoints |
+| --- | --- |
+| Users | `GET/POST/DELETE /api/users/favorites[/:id]`, `PATCH /api/users/profile`, `PATCH /api/users/password` |
+| Password reset | `POST /api/auth/forgot-password`, `POST /api/auth/reset-password` (emailed link via Resend; in development without email the link is returned to the UI) |
+| Uploads | `POST /api/uploads/property-images` (landlord, multipart `images`, up to 6 JPG/PNG/WebP of 5 MB) |
+| Recommendations | `GET/PUT /api/recommendations/preferences`, `GET /api/recommendations`, `GET /api/recommendations/similar/:propertyId` |
+| Reports | `POST /api/reports`, `GET /api/reports/mine` |
+| Landlord | `GET /api/landlord/dashboard` |
+| Admin | `GET /api/admin/stats`, `/activity`, `/analytics`, `/users`, `/properties`, `/bookings`, `/payments`, `/reports`; `PATCH /api/admin/users/:id/suspend`·`unsuspend`, `/properties/:id/approve`·`reject`·`suspend`, `/reports/:id` |
+
+Every admin state change is recorded in the `adminactions` collection
+(who, what, target, before, after, note).
+
 ## Roadmap
 
 Following the project's phase plan:
@@ -491,16 +544,17 @@ Following the project's phase plan:
 | 5. Property CRUD | Done |
 | 6. Search, filters, pagination, nearby | Done |
 | 7. Booking workflow | Done |
-| 8. Payment and confirmation | Not started |
-| 9. Profile and favourites | Not started |
-| 10. Landlord APIs | Not started |
-| 11. Admin APIs | Not started |
-| 12. Security, validation and error hardening | Not started |
-| 13. Frontend integration | Auth wired up; the rest waits on phases 5–12 |
-| 14. Final testing and API docs | Not started |
+| 8. Payment and confirmation (Razorpay) | Done |
+| 9. Profile, favourites, password reset | Done |
+| 10. Landlord APIs | Done |
+| 11. Admin APIs, reports, analytics, audit trail | Done |
+| 12. Security, validation and error hardening | Done |
+| 13. Frontend integration | Done |
+| 14. Final testing and API docs | Done (118 tests) |
 
-The ML recommendation service stays a separate Python module and is not part
-of these phases.
+Recommendations run in `services/recommendationService.js` (TF-IDF feature
+vectors + cosine similarity). It sits behind its own endpoints so it can be
+swapped for a separate Python service later without changing the frontend.
 
 ### Note for frontend integration (phase 13)
 
@@ -516,17 +570,8 @@ The React app talks to this API through one Axios instance
 (`src/services/apiClient.js`), which attaches the token, unwraps the
 `data` envelope and normalises errors. Pages never call axios directly.
 
-Currently wired to real endpoints:
-
-| Frontend | Endpoint |
-| --- | --- |
-| Login page | `POST /api/auth/login` |
-| Register page | `POST /api/auth/register` |
-| Session restore on page load | `GET /api/auth/me` |
-
-Still running on mock data, because the endpoints do not exist yet:
-property search and details, bookings, payments, favourites, landlord and
-admin screens, and the password-reset flow.
+Every screen (tenant, landlord and admin) now runs on these endpoints;
+nothing in the app uses mock data.
 
 Two things to know:
 
@@ -573,14 +618,11 @@ After seeding you get:
 ### Worth knowing while testing
 
 - A listing a landlord creates starts as `pending` verification, so it
-  will **not** appear in public search until an admin verifies it. The
-  admin moderation endpoints are not built yet, so for now re-run
-  `npm run seed:properties` or flip `verificationStatus` directly if you
-  need a new listing to be publicly visible.
-- The tenant and landlord screens run on the real API. The **admin
-  screens are still mock-driven** — there are no admin endpoints yet.
-- The payment step is deliberately disabled: Razorpay is not configured,
-  and the UI says so rather than faking a successful transaction.
+  will **not** appear in public search until an admin approves it under
+  **Admin -> Properties**.
+- Payments need Razorpay test keys (see [Payments with Razorpay](#payments-with-razorpay)).
+  Without them the Pay button explains that payments are not configured
+  instead of faking a successful transaction.
 
 ### Scripts
 
