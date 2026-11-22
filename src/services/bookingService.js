@@ -7,6 +7,7 @@ import {
 import { OCCUPANCY_TYPES, Property } from '../models/Property.js'
 import { badRequest, conflict, forbidden, notFound } from '../utils/AppError.js'
 import { notify } from './notificationService.js'
+import { emailBookingDecision, emailBookingRequested } from './mailService.js'
 
 const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 50
@@ -119,6 +120,8 @@ export async function createBookingRequest(body, tenant) {
     body: `${tenant.name} requested ${property.title} (${occupancyType}).`,
     relatedEntity: { kind: 'booking', id: booking._id },
   })
+
+  emailBookingRequested({ landlord: property.landlord, tenantName: tenant.name, propertyTitle: property.title, bookingId: booking._id })
 
   return booking.toPublicJSON()
 }
@@ -246,6 +249,8 @@ export async function approveBooking(id, landlord) {
     relatedEntity: { kind: 'booking', id: booking._id },
   })
 
+  emailBookingDecision({ tenant: booking.tenant, propertyTitle: booking.property?.title ?? 'your property', approved: true, bookingId: booking._id })
+
   return booking.toPublicJSON()
 }
 
@@ -275,6 +280,8 @@ export async function rejectBooking(id, landlord, reason) {
     relatedEntity: { kind: 'booking', id: booking._id },
   })
 
+  emailBookingDecision({ tenant: booking.tenant, propertyTitle: booking.property?.title ?? 'your property', approved: false, reason, bookingId: booking._id })
+
   return booking.toPublicJSON()
 }
 
@@ -303,20 +310,26 @@ export async function cancelBooking(id, user, reason) {
     )
   }
 
+  // Once money has been taken, only an admin may cancel (and arrange a refund).
+  if (isTenant && user.role !== 'admin' && ['paid', 'booked', 'occupied'].includes(booking.status)) {
+    throw conflict('This booking is already paid. Please contact support to cancel it.', 'PAID_BOOKING')
+  }
+
   // A room was only claimed once the request was approved.
   const roomWasClaimed = ['accepted', 'payment_pending', 'paid', 'booked'].includes(booking.status)
 
   booking.transitionTo('cancelled', { by: user._id, note: reason })
   booking.cancelledAt = new Date()
   booking.cancellationReason = reason ?? null
-  booking.paymentStatus = 'not_required'
+  // A paid booking keeps its payment record; the refund is handled separately.
+  if (booking.paymentStatus !== 'paid') booking.paymentStatus = 'not_required'
   await booking.save()
 
   if (roomWasClaimed) {
     const property = await Property.findById(booking.property)
     if (property) {
       property.availableRooms = Math.min(property.availableRooms + 1, property.totalRooms)
-      if (property.availabilityStatus === 'booked' && property.availableRooms > 0) {
+      if (['booked', 'occupied'].includes(property.availabilityStatus) && property.availableRooms > 0) {
         property.availabilityStatus = 'available'
       }
       await property.save()
@@ -358,8 +371,11 @@ export async function confirmPaidBooking(bookingId, { session } = {}) {
   booking.paymentStatus = 'paid'
   await booking.save({ session })
 
-  await Property.findByIdAndUpdate(
-    booking.property,
+  // The room was already reserved on approval. The listing as a whole is
+  // only "occupied" once its last room is paid for; a PG with rooms left
+  // stays available for other tenants.
+  await Property.updateOne(
+    { _id: booking.property, availableRooms: 0 },
     { availabilityStatus: 'occupied' },
     { session },
   )

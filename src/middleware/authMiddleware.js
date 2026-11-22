@@ -37,7 +37,7 @@ export async function protect(req, _res, next) {
   }
 
   if (user.status === 'suspended') {
-    return next(forbidden('This account has been suspended. Please contact support.'))
+    return next(forbidden(`This account has been suspended${user.suspensionReason ? `: ${user.suspensionReason}` : ''}. Please contact support.`))
   }
 
   req.user = user
