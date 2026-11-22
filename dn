@@ -1,0 +1,120 @@
+[33mcommit 08a1f5576d8e83d844722b3614ca3bc5e059b2f4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Harshit Tiwari <harshittiwari8225@gmail.com>
+Date:   Fri Sep 11 00:42:17 2026 +0530
+
+    modifed
+
+[33mcommit 02e43ecc90f2a94e3231c2a8aeb69d2acc0b6fe0[m
+Author: Harshit Tiwari <harshittiwari8225@gmail.com>
+Date:   Fri Sep 11 00:33:52 2026 +0530
+
+    Property APIs: CRUD, search, filters, pagination and nearby search
+    
+    Phases F and G of the master specification, plus a fix to the README.
+    
+    Property model, revised
+    - Stores what the specification asks for (GeoJSON point + 2dsphere index,
+      separate verificationStatus and availabilityStatus) but serialises what
+      the React app already consumes (location.lat/lng, `status`, a `verified`
+      boolean, a landlord object). toPublicJSON() is the only place that
+      translation happens, so 17k lines of working UI need no rewrite.
+    - Rent is priced per occupancy, matching the booking form the frontend
+      already has. A pre-save hook maintains indexed rentMin/rentMax so rent
+      filtering and sorting stay plain indexed queries.
+    - Adds gender preference, occupancy tiers, room counts and landmarks,
+      which the existing UI displays.
+    
+    Endpoints
+    - GET    /api/properties              search, filter, sort, paginate
+    - GET    /api/properties/nearby       radius query, distance per result
+    - GET    /api/properties/my-properties
+    - GET    /api/properties/:id
+    - POST   /api/properties              landlord
+    - PUT    /api/properties/:id          landlord, own only
+    - DELETE /api/properties/:id          landlord, own only
+    
+    Rules enforced server-side
+    - Ownership comes from the token; a landlord field in the body is ignored.
+    - A landlord cannot verify or feature their own listing; editing a
+      verified listing returns it to pending.
+    - Discoverability: anonymous and tenant callers see only verified, active
+      listings; a landlord additionally sees their own; an admin sees all. A
+      listing the caller may not see returns 404, not 403, so hidden listings
+      cannot be probed by id.
+    - Filters requiring several amenities require all of them; a rent range
+      matches when any occupancy price falls inside it; a gender search still
+      includes listings open to anyone.
+    
+    Supporting work
+    - optionalAuth middleware, so public routes can widen results for a
+      landlord or admin without requiring a token.
+    - seedProperties script: ten realistic tier-2/tier-3 listings across two
+      landlords, including one pending and one occupied fixture so moderation
+      and availability are demonstrable.
+    - syncIndexes script: Mongoose never drops indexes a schema no longer
+      declares, and a stale 2dsphere index makes every insert fail after a
+      field changes shape.
+    - Test suite grows to 64 (41 new). Each test file now uses its own
+      database so files can run in parallel.
+    - Removes UTF-16 bytes that a PowerShell "echo >> README.md" appended to
+      the README, which had made the file unreadable as text.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+[33mcommit cfd4436c3667b48ffb5f02f8118afb7883de2ce2[m
+Author: Harshit Tiwari <harshittiwari8225@gmail.com>
+Date:   Fri Sep 11 00:01:04 2026 +0530
+
+    first commit
+
+[33mcommit e15ea81b6759b2e2c8c43cc19cc3be7079efc0de[m
+Author: Harshit Tiwari <harshittiwari8225@gmail.com>
+Date:   Thu Sep 10 23:54:07 2026 +0530
+
+    StaySphere backend: foundation, models, auth and role authorization
+    
+    Phases 1-4 of the backend plan, built with Node.js, Express 5, MongoDB
+    and Mongoose.
+    
+    Phase 1 — Foundation
+    - Validated config (fails fast on a missing required variable), single
+      MongoDB connection, /health route reporting database state
+    - Helmet, CORS restricted to the configured frontend origins, 1 MB body
+      cap, rate limiting on the auth endpoints
+    - Central error middleware: the only place an error response is shaped,
+      so stack traces and driver messages never reach clients
+    - app.js / server.js split so the app is importable without opening a
+      port or a connection
+    
+    Phase 2 — Database models
+    - User (unique email, passwordHash with select:false, hashing in the
+      model so no controller can store plain text)
+    - Property (GeoJSON point + 2dsphere index for the nearby search, plus
+      compound city/type/rent and text indexes)
+    - Booking (BOOKING_TRANSITIONS is the single source of truth for the
+      status machine; rent is captured at request time)
+    - Payment (server-derived amount, partial unique index allowing one
+      successful payment per booking while failed attempts may repeat)
+    
+    Phase 3 — Authentication
+    - POST /api/auth/register, POST /api/auth/login, GET /api/auth/me
+    - JWT carrying only id and role; bcrypt password hashing
+    - Login returns one message for both unknown email and wrong password,
+      so it cannot be used to enumerate accounts
+    - Admins cannot be created through public sign-up — seedAdmin.js is the
+      only path
+    
+    Phase 4 — Authorization
+    - authorize(...roles) kept separate from protect, so authentication and
+      authorization are independently testable
+    - Role read from the database record, never from the request body
+    
+    Also includes seedDemo.js for the demo accounts the frontend advertises,
+    and 23 tests on Node's built-in runner (no extra dependencies) covering
+    auth, password hashing, token handling, suspended accounts and every
+    role combination.
+    
+    No real payment gateway is integrated; Payment.provider records that the
+    flow is a demo.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

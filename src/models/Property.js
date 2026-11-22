@@ -213,6 +213,9 @@ const propertySchema = new mongoose.Schema(
      */
     rating: { type: Number, min: 0, max: 5, default: 0 },
     reviews: { type: Number, min: 0, default: 0 },
+
+    // Admin rejection reason, stored so the landlord can see why it was rejected
+    rejectionReason: { type: String, default: null },
   },
   { timestamps: true },
 )
