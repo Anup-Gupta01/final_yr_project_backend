@@ -504,7 +504,7 @@ Checkout opens -> `POST /api/payments/verify` checks the HMAC signature ->
 booking moves `paid -> booked`. The webhook confirms the same payment
 idempotently; whichever arrives first wins and the other is a no-op.
 
-In Test Mode use Razorpay's test card `4111 1111 1111 1111` (any future
+In Test Mode use Razorpay's domestic test card `4100 2800 0000 1007` (any future
 expiry, any CVV) or UPI id `success@razorpay`. No real money moves.
 
 | Endpoint | Who | Purpose |

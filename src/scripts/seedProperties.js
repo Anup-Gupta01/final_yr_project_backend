@@ -19,8 +19,8 @@ import { Property } from '../models/Property.js'
  */
 
 const SEED_LANDLORDS = [
-  { name: 'Ramesh Patel', email: 'landlord@test.com', phone: '9812345678' },
-  { name: 'Sunita Devi', email: 'landlord2@test.com', phone: '9812345679' },
+  { name: 'Ramesh Patel', email: 'landlord@test.com', phone: '8303427519' },
+  { name: 'Sunita Devi', email: 'landlord2@test.com', phone: '8303427526' },
 ]
 
 const DEMO_PASSWORD = 'Password123'

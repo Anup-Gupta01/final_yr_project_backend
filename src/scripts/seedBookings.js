@@ -28,7 +28,7 @@ const DEMO_PASSWORD = 'Password123'
 const SECOND_TENANT = {
   name: 'Neha Singh',
   email: 'tenant2@test.com',
-  phone: '9876500011',
+  phone: '7905123475',
   role: 'tenant',
 }
 

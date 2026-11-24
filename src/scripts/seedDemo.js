@@ -14,8 +14,8 @@ import { User } from '../models/User.js'
 const DEMO_PASSWORD = 'Password123'
 
 const DEMO_ACCOUNTS = [
-  { name: 'Arjun Sharma', email: 'user@test.com', phone: '9876543210', role: 'tenant' },
-  { name: 'Ramesh Patel', email: 'landlord@test.com', phone: '9812345678', role: 'landlord' },
+  { name: 'Arjun Sharma', email: 'user@test.com', phone: '7905123468', role: 'tenant' },
+  { name: 'Ramesh Patel', email: 'landlord@test.com', phone: '8303427519', role: 'landlord' },
   { name: 'Platform Admin', email: 'admin@test.com', phone: '9000000000', role: 'admin' },
 ]
 

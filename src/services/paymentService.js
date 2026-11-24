@@ -106,7 +106,8 @@ export async function createOrder(bookingId, tenant) {
       monthlyRent: booking.monthlyRent,
       securityDeposit: booking.securityDeposit,
     },
-    prefill: { name: tenant.name, email: tenant.email, contact: tenant.phone },
+    // Checkout expects the phone with its country code (all accounts are Indian mobiles).
+    prefill: { name: tenant.name, email: tenant.email, contact: tenant.phone ? `+91${tenant.phone}` : undefined },
   }
 }
 
