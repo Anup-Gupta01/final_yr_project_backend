@@ -38,8 +38,9 @@ export const env = {
 
   // ── Razorpay (optional: payments are disabled with a clear message when absent)
   razorpay: {
-    keyId: read('RAZORPAY_KEY_ID', { fallback: '' }),
-    keySecret: read('RAZORPAY_KEY_SECRET', { fallback: '' }),
+    // RAZORPAY_KEY / RAZORPAY_SECRET are accepted as shorter aliases.
+    keyId: read('RAZORPAY_KEY_ID', { fallback: '' }) || read('RAZORPAY_KEY', { fallback: '' }),
+    keySecret: read('RAZORPAY_KEY_SECRET', { fallback: '' }) || read('RAZORPAY_SECRET', { fallback: '' }),
     webhookSecret: read('RAZORPAY_WEBHOOK_SECRET', { fallback: '' }),
     currency: read('RAZORPAY_CURRENCY', { fallback: 'INR' }),
   },
